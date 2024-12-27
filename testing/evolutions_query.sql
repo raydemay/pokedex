@@ -4,6 +4,6 @@ SELECT
 FROM 
     Evolutions e  -- Start with the Evolutions table
 JOIN 
-    pokemon p1 ON e.from_pokemon = p1.pokedexid  -- Join with pokemon table for "from" Pokemon
+    pokemon p1 ON e.from_pokemon = p1.id  -- Join with pokemon table for "from" Pokemon
 JOIN 
-    pokemon p2 ON e.to_pokemon = p2.pokedexid;   -- Join again for "to" Pokemon
+    pokemon p2 ON e.to_pokemon = p2.id;   -- Join again for "to" Pokemon
