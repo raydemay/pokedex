@@ -62,9 +62,9 @@ def main():
         name, type1, type2, image_url = extract_pokemon_info(pokemon_data)
 
         image_file = f"images\pokemon\{pokemon_name}.png"
-        # download_image(image_url, image_file)
-
-        insert_pokemon_into_db(name, type1, type2, image_file)
+        download_image(image_url, image_file)
+        image_filename = f"{pokemon_name}.png"
+        insert_pokemon_into_db(name, type1, type2, image_filename)
 
 
 if __name__ == "__main__":
