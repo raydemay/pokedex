@@ -159,7 +159,7 @@ class PokemonPage(QWidget):
         result = self.cursor.fetchone()
         if result:
             self.name_label.setText(result[0].capitalize())
-            image_path = os.path.join("..", "images", "pokemon", result[1])
+            image_path = os.path.join("..", "images", "pokemon", "large", result[1])
             pixmap = QPixmap(image_path)
             self.image_label.setPixmap(pixmap)
 
@@ -168,9 +168,9 @@ class TrainerCardPage(QWidget):
     def __init__(self, stacked_widget, main_menu):
         super().__init__()
         layout = QVBoxLayout(self)
-        self.name_label = QLabel("Trainer Card")
-        self.name_label.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(self.name_label)
+        # self.name_label = QLabel("Trainer Card")
+        # self.name_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # layout.addWidget(self.name_label)
 
         trainer_info_widget = QWidget()
         trainer_info_layout = QHBoxLayout(trainer_info_widget)
