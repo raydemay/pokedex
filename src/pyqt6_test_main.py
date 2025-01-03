@@ -22,30 +22,34 @@ from PyQt6.QtCore import Qt
 
 
 class MainMenu(QWidget):
+    # The main menu of the application, containing buttons for different actions.
     def __init__(self, stacked_widget):
+        # Initialize the parent class and create a vertical layout for the widget
         super().__init__()
-        layout = QVBoxLayout(self)
+        self.layout = QVBoxLayout(self)
 
+        # Create a button for accessing the Pokédex
         self.pokedex_button = QPushButton("Pokédex")
+        # Connect the button's clicked signal to hide the main menu and display the next index in the stacked widget
         self.pokedex_button.clicked.connect(
             lambda: [self.hide(), stacked_widget.setCurrentIndex(0)]
         )
-        layout.addWidget(self.pokedex_button)
+        # Add the button to the layout
+        self.layout.addWidget(self.pokedex_button)
 
+        # Create a button for accessing the Trainer Card
         trainer_card_button = QPushButton("Trainer Card")
         trainer_card_button.clicked.connect(
             lambda: [self.hide(), stacked_widget.setCurrentIndex(1)]
         )
-        layout.addWidget(trainer_card_button)
+        self.layout.addWidget(trainer_card_button)
 
+        # Create a button for accessing the Settings
         settings_button = QPushButton("Settings")
         settings_button.clicked.connect(
             lambda: [self.hide(), stacked_widget.setCurrentIndex(2)]
         )
-        layout.addWidget(settings_button)
-
-    def connect_pokedex_button(self, function):
-        self.pokedex_button.clicked.connect(function)
+        self.layout.addWidget(settings_button)
 
 
 class PokedexPage(QWidget):
@@ -242,20 +246,30 @@ class SettingsPage(QWidget):
 
 class PokedexApp(QMainWindow):
     def __init__(self):
+        """
+        Initializes the PokedexApp instance.
+
+        This is the entry point of the application. It sets up the main window,
+        creates a database connection, and populates the Pokemon list with
+        data from the database.
+        """
         super().__init__()
         self.setWindowTitle("Pokédex")
         self.setFixedSize(640, 640)
         self.bind_keys()
         self.load_custom_font()  # Load the custom font
 
+        # Create stacked widget to hold pages
         self.stacked_widget = QStackedWidget(self)
         self.setCentralWidget(self.stacked_widget)
 
+        # Initialize main menu and add it to the stack
         self.main_menu = MainMenu(self.stacked_widget)  # Initialize main_menu first
         self.pokedex_page = PokedexPage(self.stacked_widget, self.main_menu)
         self.trainer_card_page = TrainerCardPage(self.stacked_widget, self.main_menu)
         self.settings_page = SettingsPage(self.stacked_widget, self.main_menu)
 
+        # Add pages to the stack
         self.stacked_widget.addWidget(self.pokedex_page)
         self.stacked_widget.addWidget(self.trainer_card_page)
         self.stacked_widget.addWidget(self.settings_page)
