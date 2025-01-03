@@ -64,21 +64,24 @@ class PokedexPage(QWidget):
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.addWidget(self.name_label)
 
+        # Create scrollable area for displaying Pokémon names
         scroll_area = QScrollArea(self)
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        list_widget = QWidget()  # Create a widget to hold the list
+
+        # Create a widget to hold the list
+        list_widget = QWidget()
         list_layout = QVBoxLayout(list_widget)
 
+        # Creeate list and populate with Pokémon names
         self.pokemon_list = QListWidget()
         self.pokemon_list.setSpacing(4)  # Set the spacing to 4 pixels
         for id, name in self.pokemon_names:  # Iterate through the tuples
             item = QListWidgetItem(f"{id}: {name.capitalize()}")
             self.pokemon_list.addItem(item)  # Add id and name to the combobox
+        # Open PokemonPage when an item is clicked
         self.pokemon_list.currentItemChanged.connect(
-            lambda current, previous: self.show_pokemon_page(
-                stacked_widget, main_menu, current
-            )
+            lambda current, previous: self.show_pokemon_page(stacked_widget, current)
         )
         list_layout.addWidget(self.pokemon_list)
         scroll_area.setWidget(
@@ -86,6 +89,7 @@ class PokedexPage(QWidget):
         )  # Set the list widget as the scroll area's widget
         layout.addWidget(scroll_area)  # Add the scroll area to the main layout
 
+        # Add Back button
         self.back_button = QPushButton("Back")
         self.back_button.clicked.connect(
             lambda: [
@@ -96,33 +100,23 @@ class PokedexPage(QWidget):
         layout.addWidget(self.back_button)
 
     def get_pokemon_names(self):
+        # Function to get Pokemon names from the database
         self.cursor.execute("SELECT id, name FROM pokemon")
         return [
             (str(row[0]), row[1]) for row in self.cursor.fetchall()
         ]  # Return tuples of (id, name)
 
-    def show_pokemon_page(self, stacked_widget, main_menu, current_item):
+    def show_pokemon_page(self, stacked_widget, current_item):
         """
         Displays the PokemonPage for the selected Pokemon.
 
         This function is called when a new item is selected in the pokemon_list.
         It extracts the pokemon_id from the selected item's text, creates a
         PokemonPage instance with the ID, and adds it to the stacked_widget.
-
-        The main_menu argument is passed to the PokemonPage constructor so that
-        the PokemonPage can access it to correctly handle the "Back" button
-        functionality and navigate back to the main menu.
-
-        Args:
-            stacked_widget (QStackedWidget): The stacked widget that holds the pages.
-            main_menu (MainMenu): The main menu widget.
-            current_item (QListWidgetItem): The currently selected item in the list.
         """
         if current_item is not None:
             pokemon_id, _ = current_item.text().split(": ")
-            pokemon_page = PokemonPage(
-                stacked_widget, self, pokemon_id
-            )  # Create PokemonPage with main_menu
+            pokemon_page = PokemonPage(stacked_widget, self, pokemon_id)
             stacked_widget.addWidget(pokemon_page)
             stacked_widget.setCurrentWidget(pokemon_page)
 
@@ -165,7 +159,7 @@ class PokemonPage(QWidget):
         result = self.cursor.fetchone()
         if result:
             self.name_label.setText(result[0].capitalize())
-            image_path = image_path = os.path.join("..", "images", "pokemon", result[1])
+            image_path = os.path.join("..", "images", "pokemon", result[1])
             pixmap = QPixmap(image_path)
             self.image_label.setPixmap(pixmap)
 
