@@ -37,8 +37,7 @@ QScrollArea>QWidget>QWidget {
 
 QListWidget {
     font-family: PKMN RBYGSC;
-    font-size: 18px;
-    padding: 5px;
+    font-size: 28px;
     color: #111;
     background-color: #f8f8f8;
 }

@@ -17,8 +17,8 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QFrame,
 )
-from PyQt6.QtGui import QPixmap, QKeySequence, QShortcut, QFontDatabase
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap, QKeySequence, QShortcut, QFontDatabase, QIcon
+from PyQt6.QtCore import Qt, QSize
 
 
 class MainMenu(QWidget):
@@ -75,13 +75,18 @@ class PokedexPage(QWidget):
 
         # Creeate list and populate with Pokémon names
         self.pokemon_list = QListWidget()
-        self.pokemon_list.setSpacing(4)  # Set the spacing to 4 pixels
+        self.pokemon_list.setViewMode(QListWidget.ViewMode.ListMode)
+        self.pokemon_list.setIconSize(QSize(60, 60))
+        # self.pokemon_list.setSpacing(3)  # Set the spacing to 4 pixels
         for id, name in self.pokemon_names:  # Iterate through the tuples
-            item = QListWidgetItem(f"{id}: {name.capitalize()}")
+            item = QListWidgetItem(f"{id}: {name.upper()}")
+            icon_path = os.path.join("..", "images", "pokemon", "sprites", f"{id}.png")
+            icon = QIcon(icon_path)
+            item.setIcon(icon)
             self.pokemon_list.addItem(item)  # Add id and name to the combobox
         # Open PokemonPage when an item is clicked
         self.pokemon_list.currentItemChanged.connect(
-            lambda current, previous: self.show_pokemon_page(stacked_widget, current)
+            lambda current: self.show_pokemon_page(stacked_widget, current)
         )
         list_layout.addWidget(self.pokemon_list)
         scroll_area.setWidget(
