@@ -1,29 +1,44 @@
 QMainWindow {
-    background-color:#e7e7e7;
+    background-color: #f8f8f8;
 }
 
 QLabel {
-    font-family: PKMN RBYGSC; 
-    font-size: 36px;
-    color: #333;
-}
-
-QComboBox {
-    font-size: 36px;
     font-family: PKMN RBYGSC;
-    color: #333;
-    padding: 8px;
-    background-color:#e7e7e7;
-   /* border: 6px solid #ff4444; */
+    font-size: 36px;
+    color: #111;
 }
 
-QComboBox::drop-down:button{
-	width: 48px;
+QPushButton {
+    font-family: PKMN RBYGSC;
+    font-size: 24px;
+    padding: 16px;
+    color: #111;
+    background-color: #f8f8f8;
+    border: 2px solid #111;
+    border-radius: 4px;
+
 }
 
-QComboBox QAbstractItemView {
-    color: #333;
-    background-color:#e7e7e7;
-    border: 2px solid darkgray;
-    selection-background-color: lightgray;
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+
+
+QScrollArea {
+    background-color: #f8f8f8;
+    border: none;
+}
+
+QScrollArea>QWidget>QWidget {
+    /* Target the inner-most QWidget */
+    background-color: #f8f8f8;
+    border: none;
+}
+
+QListWidget {
+    font-family: PKMN RBYGSC;
+    font-size: 18px;
+    padding: 5px;
+    color: #111;
+    background-color: #f8f8f8;
 }
