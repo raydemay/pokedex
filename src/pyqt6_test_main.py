@@ -61,7 +61,7 @@ class PokedexPage(QWidget):
         self.pokemon_names = self.get_pokemon_names()
         layout = QVBoxLayout(self)
         self.name_label = QLabel("Select a Pokémon")
-        self.name_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.name_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self.name_label)
 
         # Create scrollable area for displaying Pokémon names
@@ -230,9 +230,10 @@ class SettingsPage(QWidget):
     def __init__(self, stacked_widget, main_menu):
         super().__init__()
         layout = QVBoxLayout(self)
-        self.name_label = QLabel("Selttings")
-        self.name_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.name_label = QLabel("Settings")
+        self.name_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self.name_label)
+
         self.back_button = QPushButton("Back")
         self.back_button.clicked.connect(
             lambda: [
