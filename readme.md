@@ -2,6 +2,10 @@
 
 This project aims to create a fun and interactive Pokédex application using a Raspberry Pi Zero 2 W and a small TFT display. The Pokédex will allow users to browse through Pokémon, view their details, and track their "caught" Pokémon, similar to the Pokédex in the Pokémon games and anime.
 
+![Application Settings Menu](docs/pokedex_menus.png)
+![Pokedex](docs/pokedex_list.png)
+![Pikachu](docs/pikachu_entry.png)
+
 ## Project Goals
 
 - Develop a user-friendly Pokédex application with a graphical interface.
