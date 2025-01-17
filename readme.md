@@ -61,6 +61,18 @@ This project aims to create a fun and interactive Pokédex application using a R
 
 This project is still in active development, and new features and improvements will be added over time.
 
+## Requirements
+
+This project was built using Python 3.13
+
+- See `requirements.txt` for the necessary libraries. Install them with `pip install -r requirements.txt`
+
+**Running the application**
+
+1. Clone this repository.
+2. Navigate to the `src` directory.
+3. Run the `main.py` script
+
 ## License
 
 Pokémon and Pokémon character names are trademarks of Nintendo and Game Freak.
