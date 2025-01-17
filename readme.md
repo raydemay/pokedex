@@ -50,9 +50,12 @@ This project aims to create a fun and interactive Pokédex application using a R
 ## Repository Structure
 
 - `database/`: Contains the SQL scripts to create and populate the database.
+- `docs/`: Contains image files for this readme and any other documentation
 - `images/`: Stores the Pokémon sprite images and other images used in the application.
 - `sounds/`: (Planned) Will store sound effects or Pokémon cries.
 - `src/`: Contains the Python scripts for the PyQt6 application.
+- `testing/`: Files for testing
+- `LICENSE`: License file
 - `README.md`: This file.
 - `.gitignore`: Specifies files and folders to be ignored by Git.
 
