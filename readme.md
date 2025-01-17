@@ -81,3 +81,4 @@ Pokémon and Pokémon character names are trademarks of Nintendo and Game Freak.
 
 - Special thanks to [PokéAPI](https://pokeapi.co/) for providing the data and images used in this application.
 - Inspiration from various online resources, including Pokémon fan communities and game guides.
+- This project was developed with assistance from Gemini Advanced. Gemini helped with generating and refining code, suggesting solutions to challenges, and providing guidance on best practices.
