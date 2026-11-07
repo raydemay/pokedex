@@ -1,0 +1,58 @@
+QMainWindow, QWidget {
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+}
+
+QLabel {
+    font-family: PKMN RBYGSC;
+    font-size: 36px;
+    color: #f0f0f0;
+    background-color: transparent;
+}
+
+QPushButton {
+    font-family: PKMN RBYGSC;
+    font-size: 24px;
+    padding: 16px;
+    color: #f0f0f0;
+    background-color: #2a2a2a;
+    border: 2px solid #f0f0f0;
+    border-radius: 4px;
+}
+
+QPushButton:hover {
+    background-color: #3a3a3a;
+}
+
+QScrollArea {
+    background-color: #1a1a1a;
+    border: none;
+}
+
+QScrollArea>QWidget>QWidget {
+    background-color: #1a1a1a;
+    border: none;
+}
+
+QListWidget {
+    font-family: PKMN RBYGSC;
+    font-size: 28px;
+    color: #f0f0f0;
+    background-color: #1a1a1a;
+}
+
+QLabel#typeBadge {
+    font-size: 18px;
+    padding: 6px 12px;
+    border: 2px solid #f0f0f0;
+    border-radius: 4px;
+}
+
+QLabel#descriptionLabel {
+    font-size: 16px;
+    padding: 8px;
+}
+
+QLabel#evolutionsLabel {
+    font-size: 16px;
+}

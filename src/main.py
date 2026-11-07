@@ -26,6 +26,7 @@ LARGE_IMAGES_DIR = BASE_DIR / "images" / "pokemon" / "large"
 TRAINER_IMAGE_PATH = BASE_DIR / "images" / "trainers" / "trainer.jpeg"
 FONT_PATH = BASE_DIR / "src" / "fonts" / "PKMN_RBYGSC.ttf"
 STYLES_PATH = BASE_DIR / "src" / "styles.qss"
+DARK_STYLES_PATH = BASE_DIR / "src" / "dark_styles.qss"
 
 
 class MainMenu(QWidget):
@@ -455,14 +456,29 @@ class TrainerCardPage(QWidget):
 
 
 class SettingsPage(QWidget):
-    """Application settings page."""
+    """Application settings page with Light/Dark mode toggle."""
 
-    def __init__(self, stacked_widget: QStackedWidget, main_menu: QWidget):
+    def __init__(
+        self,
+        stacked_widget: QStackedWidget,
+        main_menu: QWidget,
+        app_window: "PokedexApp | None" = None,
+    ):
         super().__init__()
+        self.stacked_widget = stacked_widget
+        self.main_menu = main_menu
+        self.app_window = app_window
+        self.dark_mode = False
+
         layout = QVBoxLayout(self)
         self.name_label = QLabel("Settings")
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self.name_label)
+
+        self.theme_button = QPushButton("Theme: Light Mode")
+        self.theme_button.setCheckable(True)
+        self.theme_button.clicked.connect(self.toggle_theme)
+        layout.addWidget(self.theme_button)
 
         self.back_button = QPushButton("Back")
         self.back_button.clicked.connect(
@@ -473,6 +489,19 @@ class SettingsPage(QWidget):
         )
         layout.addWidget(self.back_button)
 
+    def toggle_theme(self, _checked: bool | None = None) -> None:
+        """Toggle between Light Mode and Dark Mode."""
+        self.dark_mode = not self.dark_mode
+        self.theme_button.blockSignals(True)
+        self.theme_button.setChecked(self.dark_mode)
+        self.theme_button.setText(
+            "Theme: Dark Mode" if self.dark_mode else "Theme: Light Mode"
+        )
+        self.theme_button.blockSignals(False)
+
+        if self.app_window is not None:
+            self.app_window.apply_theme(self.dark_mode)
+
 
 class PokedexApp(QMainWindow):
     """Main window managing stacked pages of the Pokédex application."""
@@ -480,6 +509,7 @@ class PokedexApp(QMainWindow):
     def __init__(self, db_path: Path | str | None = None):
         super().__init__()
         self.db_path = Path(db_path) if db_path else DB_PATH
+        self.dark_mode = False
         self.setWindowTitle("Pokédex")
         self.setFixedSize(640, 640)
         self.bind_keys()
@@ -499,7 +529,9 @@ class PokedexApp(QMainWindow):
         self.trainer_card_page = TrainerCardPage(
             self.stacked_widget, self.main_menu, db_path=self.db_path
         )
-        self.settings_page = SettingsPage(self.stacked_widget, self.main_menu)
+        self.settings_page = SettingsPage(
+            self.stacked_widget, self.main_menu, app_window=self
+        )
 
         self.stacked_widget.addWidget(self.pokedex_page)
         self.stacked_widget.addWidget(self.trainer_card_page)
@@ -508,9 +540,14 @@ class PokedexApp(QMainWindow):
         self.stacked_widget.addWidget(self.pokemon_page)
 
         self.stacked_widget.setCurrentWidget(self.main_menu)
+        self.apply_theme(self.dark_mode)
 
-        if STYLES_PATH.exists():
-            style = STYLES_PATH.read_text(encoding="utf-8")
+    def apply_theme(self, dark_mode: bool = False) -> None:
+        """Apply light or dark stylesheet across the window and QApplication."""
+        self.dark_mode = bool(dark_mode)
+        target_qss = DARK_STYLES_PATH if self.dark_mode else STYLES_PATH
+        if target_qss.exists():
+            style = target_qss.read_text(encoding="utf-8")
             self.setStyleSheet(style)
             app_instance = QApplication.instance()
             if app_instance is not None:

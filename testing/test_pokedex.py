@@ -329,6 +329,19 @@ def test_default_pokedex_db_and_base_dir_paths(qapp, monkeypatch, tmp_path):
         assert "strange seed" in app_win.pokemon_page.description_label.text()
         assert app_win.pokemon_page.shiny_image_label.pixmap() is not None
         assert not app_win.pokemon_page.shiny_image_label.pixmap().isNull()
+
+        # Verify Light/Dark mode switch in SettingsPage
+        settings = app_win.settings_page
+        assert app_win.dark_mode is False
+        assert settings.theme_button.text() == "Theme: Light Mode"
+        settings.theme_button.click()
+        assert app_win.dark_mode is True
+        assert settings.theme_button.text() == "Theme: Dark Mode"
+        assert "#1a1a1a" in app_win.styleSheet()
+        settings.theme_button.click()
+        assert app_win.dark_mode is False
+        assert settings.theme_button.text() == "Theme: Light Mode"
+        assert "#f8f8f8" in app_win.styleSheet()
     finally:
         app_win.close()
 
