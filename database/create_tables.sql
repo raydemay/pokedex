@@ -1,6 +1,6 @@
 -- Create the Pokémon table with necessary fields.
 CREATE TABLE IF NOT EXISTS pokemon (
-    id INT PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     Type1 VARCHAR(50) NOT NULL,
     Type2 VARCHAR(50),
@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS evolutions (
     to_pokemon INT,
     condition VARCHAR(255), 
     FOREIGN KEY (from_pokemon) REFERENCES pokemon(id),
-    FOREIGN KEY (to_pokemon) REFERENCES pokemon(id)
+    FOREIGN KEY (to_pokemon) REFERENCES pokemon(id),
+    UNIQUE(from_pokemon, to_pokemon)
 );
 
 -- Create the trainer table to store information about trainers.
