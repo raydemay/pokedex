@@ -1,0 +1,45 @@
+# Virtual environments
+python313/
+.venv/
+venv/
+env/
+ENV/
+
+# Pytest & testing artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Python byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# SQLite temporary / journal files
+*.db-journal
+*.db-wal
+*.db-shm
+
+# IDE & editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment variables
+.env
+.env.*
