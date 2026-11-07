@@ -16,7 +16,6 @@ sys.path.insert(0, str(BASE_DIR / "src"))
 sys.path.insert(0, str(BASE_DIR / "database"))
 
 import main as pokedex_main
-import populate_pokemon_table
 import seed_database as seeder
 
 
@@ -346,9 +345,10 @@ def test_default_pokedex_db_and_base_dir_paths(qapp, monkeypatch, tmp_path):
         app_win.close()
 
 
-def test_populate_pokemon_table_description_and_shiny(tmp_path):
-    """Verify populate_pokemon_table extracts description and shiny sprite URL and saves to DB."""
+def test_extract_pokemon_info_description_and_shiny():
+    """Verify seed_database.extract_pokemon_info extracts description and shiny sprite URL."""
     pokemon_data = {
+        "id": 25,
         "name": "pikachu",
         "types": [{"type": {"name": "electric"}}],
         "sprites": {
@@ -363,17 +363,17 @@ def test_populate_pokemon_table_description_and_shiny(tmp_path):
                 "language": {"name": "en"},
                 "version": {"name": "red"},
             }
-        ]
+        ],
+        "evolves_from_species": None,
     }
 
-    name, type1, type2, image_url, shiny_url, description = (
-        populate_pokemon_table.extract_pokemon_info(pokemon_data, species_data)
-    )
-    assert name == "pikachu"
-    assert type1 == "electric"
-    assert type2 is None
-    assert image_url == "https://example.com/sprites/25.png"
-    assert shiny_url == "https://example.com/sprites/shiny/25.png"
-    assert description == "When several of these POKéMON gather, their electricity could build."
+    info = seeder.extract_pokemon_info(pokemon_data, species_data)
+    assert info["id"] == 25
+    assert info["name"] == "pikachu"
+    assert info["type1"] == "electric"
+    assert info["type2"] is None
+    assert info["sprite_url"] == "https://example.com/sprites/25.png"
+    assert info["shiny_url"] == "https://example.com/sprites/shiny/25.png"
+    assert info["description"] == "When several of these POKéMON gather, their electricity could build."
 
 

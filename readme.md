@@ -47,7 +47,7 @@ This project aims to create a fun and interactive Pokédex application using a R
 
 ## Repository Structure
 
-- `database/`: SQLite schema (`create_tables.sql`), unified seeding script (`seed_database.py`), individual population scripts (`populate_pokemon_table.py`, `populate_evolutions_table.py`), and the SQLite database (`pokedex.db`).
+- `database/`: SQLite schema (`create_tables.sql`), unified seeding script (`seed_database.py`), and the SQLite database (`pokedex.db`).
 - `docs/`: Screenshots and documentation assets.
 - `images/`: Cached Pokémon list sprites (`pokemon/sprites/`), shiny sprites (`pokemon/shiny/`), official artwork (`pokemon/large/`), and trainer card images (`trainers/`).
 - `src/`: PyQt6 application (`main.py`), Light/Dark stylesheets (`styles.qss`, `dark_styles.qss`), and custom font (`fonts/PKMN_RBYGSC.ttf`).
