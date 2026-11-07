@@ -21,6 +21,7 @@ from PyQt6.QtCore import Qt, QSize
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "database" / "pokedex.db"
 SPRITES_DIR = BASE_DIR / "images" / "pokemon" / "sprites"
+SHINY_SPRITES_DIR = BASE_DIR / "images" / "pokemon" / "shiny"
 LARGE_IMAGES_DIR = BASE_DIR / "images" / "pokemon" / "large"
 TRAINER_IMAGE_PATH = BASE_DIR / "images" / "trainers" / "trainer.jpeg"
 FONT_PATH = BASE_DIR / "src" / "fonts" / "PKMN_RBYGSC.ttf"
@@ -163,16 +164,23 @@ class PokemonPage(QWidget):
         header_layout.addWidget(self.name_label)
         layout.addLayout(header_layout)
 
-        # Artwork
+        # Artwork and Shiny sprite
+        images_layout = QHBoxLayout()
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.image_label)
+        self.shiny_image_label = QLabel()
+        self.shiny_image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        images_layout.addWidget(self.image_label)
+        images_layout.addWidget(self.shiny_image_label)
+        layout.addLayout(images_layout)
 
         # Type1 / Type2 badges
         types_layout = QHBoxLayout()
         self.type1_label = QLabel()
+        self.type1_label.setObjectName("typeBadge")
         self.type1_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.type2_label = QLabel()
+        self.type2_label.setObjectName("typeBadge")
         self.type2_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         types_layout.addWidget(self.type1_label)
         types_layout.addWidget(self.type2_label)
@@ -180,12 +188,14 @@ class PokemonPage(QWidget):
 
         # Word-wrapped flavor text description
         self.description_label = QLabel()
+        self.description_label.setObjectName("descriptionLabel")
         self.description_label.setWordWrap(True)
         self.description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.description_label)
 
         # Evolution links
         self.evolutions_label = QLabel()
+        self.evolutions_label.setObjectName("evolutionsLabel")
         self.evolutions_label.setWordWrap(True)
         self.evolutions_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.evolutions_label)
@@ -257,12 +267,23 @@ class PokemonPage(QWidget):
         pixmap = QPixmap(str(image_path))
         if not pixmap.isNull():
             pixmap = pixmap.scaled(
-                200,
-                200,
+                180,
+                180,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
         self.image_label.setPixmap(pixmap)
+
+        shiny_path = SHINY_SPRITES_DIR / image_filename
+        shiny_pixmap = QPixmap(str(shiny_path))
+        if not shiny_pixmap.isNull():
+            shiny_pixmap = shiny_pixmap.scaled(
+                120,
+                120,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.FastTransformation,
+            )
+        self.shiny_image_label.setPixmap(shiny_pixmap)
 
         self._load_evolutions(pid)
 

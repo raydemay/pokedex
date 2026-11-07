@@ -16,6 +16,7 @@ sys.path.insert(0, str(BASE_DIR / "src"))
 sys.path.insert(0, str(BASE_DIR / "database"))
 
 import main as pokedex_main
+import populate_pokemon_table
 import seed_database as seeder
 
 
@@ -125,13 +126,16 @@ def test_seed_database_and_flavor_text_cleaning(tmp_path):
 
     db_file = tmp_path / "seeded.db"
     sprites_dir = tmp_path / "sprites"
+    shiny_dir = tmp_path / "shiny"
     large_dir = tmp_path / "large"
     sprites_dir.mkdir()
+    shiny_dir.mkdir()
     large_dir.mkdir()
 
     # Pre-create existing sprite and large files so download_image skips network calls
     for pid in (1, 2):
         (sprites_dir / f"{pid}.png").write_bytes(b"fake")
+        (shiny_dir / f"{pid}.png").write_bytes(b"fake")
         (large_dir / f"{pid}.png").write_bytes(b"fake")
 
     fake_pokemon = {
@@ -193,6 +197,7 @@ def test_seed_database_and_flavor_text_cleaning(tmp_path):
             sql_path=BASE_DIR / "database" / "create_tables.sql",
             sprites_dir=sprites_dir,
             large_dir=large_dir,
+            shiny_dir=shiny_dir,
             max_pokemon=2,
         )
         # Files already existed locally, so urlretrieve should not have been called
@@ -313,12 +318,49 @@ def test_navigation_and_no_widget_leaks(qapp, temp_db):
 
 
 def test_default_pokedex_db_and_base_dir_paths(qapp, monkeypatch, tmp_path):
-    """Verify PokedexApp initializes cleanly from any working directory using BASE_DIR."""
+    """Verify PokedexApp initializes cleanly from any working directory using BASE_DIR and loads description + shiny sprite."""
     monkeypatch.chdir(tmp_path)
     app_win = pokedex_main.PokedexApp()
     try:
         assert app_win.pokedex_page.pokemon_list.count() == 151
         assert app_win.trainer_card_page.name_label.text().startswith("Name: ")
+
+        app_win.pokemon_page.load_pokemon(1)
+        assert "strange seed" in app_win.pokemon_page.description_label.text()
+        assert app_win.pokemon_page.shiny_image_label.pixmap() is not None
+        assert not app_win.pokemon_page.shiny_image_label.pixmap().isNull()
     finally:
         app_win.close()
+
+
+def test_populate_pokemon_table_description_and_shiny(tmp_path):
+    """Verify populate_pokemon_table extracts description and shiny sprite URL and saves to DB."""
+    pokemon_data = {
+        "name": "pikachu",
+        "types": [{"type": {"name": "electric"}}],
+        "sprites": {
+            "front_default": "https://example.com/sprites/25.png",
+            "front_shiny": "https://example.com/sprites/shiny/25.png",
+        },
+    }
+    species_data = {
+        "flavor_text_entries": [
+            {
+                "flavor_text": "When several of\nthese POKéMON\fgather, their electricity could build.",
+                "language": {"name": "en"},
+                "version": {"name": "red"},
+            }
+        ]
+    }
+
+    name, type1, type2, image_url, shiny_url, description = (
+        populate_pokemon_table.extract_pokemon_info(pokemon_data, species_data)
+    )
+    assert name == "pikachu"
+    assert type1 == "electric"
+    assert type2 is None
+    assert image_url == "https://example.com/sprites/25.png"
+    assert shiny_url == "https://example.com/sprites/shiny/25.png"
+    assert description == "When several of these POKéMON gather, their electricity could build."
+
 

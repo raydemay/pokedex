@@ -1,12 +1,15 @@
-import requests
-import os
-import urllib.request
 import sqlite3
+from pathlib import Path
+import requests
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = BASE_DIR / "database" / "pokedex.db"
 
 
-def get_pokedex_id(pokemon_name):
+def get_pokedex_id(pokemon_name, db_path=DB_PATH):
+    conn = None
     try:
-        conn = sqlite3.connect("pokedex.db")
+        conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
 
         cursor.execute("SELECT id FROM pokemon WHERE name = ?", (pokemon_name,))
@@ -29,47 +32,47 @@ def get_pokedex_id(pokemon_name):
 
 def get_pokemon_data(pokemon_name):
     url = f"https://pokeapi.co/api/v2/pokemon/{pokemon_name}"
-    response = requests.get(url)
+    response = requests.get(url, timeout=15)
+    response.raise_for_status()
     return response.json()  # Get the data as a Python dictionary
 
 
 def get_pokemon_species_data(pokemon_name):
     url = f"https://pokeapi.co/api/v2/pokemon-species/{pokemon_name}"
-    response = requests.get(url)
+    response = requests.get(url, timeout=15)
+    response.raise_for_status()
     return response.json()
 
 
 def extract_pokemon_info(
-    pokemon_data, pokemon_species_data
+    pokemon_data, pokemon_species_data, db_path=DB_PATH
 ):  # Add pokemon_species_data as argument
     name = pokemon_data["name"]
-    # ... (extract other fields from pokemon_data as before) ...
 
     # Extract evolution information from pokemon_species_data
     evolves_from_species = pokemon_species_data.get("evolves_from_species")
     if evolves_from_species:
         from_pokemon = evolves_from_species["name"]
-        from_pokedex_id = get_pokedex_id(from_pokemon)
-        from_pokedex_id = get_pokedex_id(from_pokemon)
+        from_pokedex_id = get_pokedex_id(from_pokemon, db_path=db_path)
 
         # Check if Pokemon exists in database
         # This is in place for Pokemon like Pichu since this is only gen 1
         if from_pokedex_id is None:  # If not found, skip this evolution
             return None, None
-        to_pokedex_id = get_pokedex_id(name)
-        # ... (extract condition if needed) ...
+        to_pokedex_id = get_pokedex_id(name, db_path=db_path)
         return from_pokedex_id, to_pokedex_id
     else:
         return None, None
 
 
-def insert_evolution_into_db(from_pokemon, to_pokemon):
+def insert_evolution_into_db(from_pokemon, to_pokemon, db_path=DB_PATH):
+    conn = None
     try:
-        conn = sqlite3.connect("pokedex.db")
+        conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
 
         insert_query = """
-            INSERT INTO Evolutions (from_pokemon, to_pokemon) 
+            INSERT OR IGNORE INTO evolutions (from_pokemon, to_pokemon) 
             VALUES (?, ?)
         """
 

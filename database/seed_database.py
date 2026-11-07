@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import sqlite3
 import urllib.request
 from pathlib import Path
@@ -7,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "database" / "pokedex.db"
 SQL_PATH = BASE_DIR / "database" / "create_tables.sql"
 SPRITES_DIR = BASE_DIR / "images" / "pokemon" / "sprites"
+SHINY_DIR = BASE_DIR / "images" / "pokemon" / "shiny"
 LARGE_DIR = BASE_DIR / "images" / "pokemon" / "large"
 
 
@@ -62,6 +64,7 @@ def extract_pokemon_info(pokemon_data: dict, species_data: dict) -> dict:
 
     sprites = pokemon_data.get("sprites", {})
     sprite_url = sprites.get("front_default")
+    shiny_url = sprites.get("front_shiny")
     large_url = (
         sprites.get("other", {})
         .get("official-artwork", {})
@@ -81,6 +84,7 @@ def extract_pokemon_info(pokemon_data: dict, species_data: dict) -> dict:
         "type2": type2,
         "image_file": f"{pokemon_id}.png",
         "sprite_url": sprite_url,
+        "shiny_url": shiny_url,
         "large_url": large_url,
         "description": description,
         "from_pokemon_name": from_pokemon_name,
@@ -105,11 +109,25 @@ def execute_schema(cursor: sqlite3.Cursor, sql_path: Path = SQL_PATH) -> None:
             cursor.execute(stmt)
 
 
+def _fetch_and_prepare(
+    pokemon_id: int, sprites_dir: Path, shiny_dir: Path, large_dir: Path
+) -> dict:
+    pokemon_data = get_pokemon_data(pokemon_id)
+    species_data = get_pokemon_species_data(pokemon_id)
+    info = extract_pokemon_info(pokemon_data, species_data)
+
+    download_image(info["sprite_url"], sprites_dir / f"{pokemon_id}.png")
+    download_image(info["shiny_url"], shiny_dir / f"{pokemon_id}.png")
+    download_image(info["large_url"], large_dir / f"{pokemon_id}.png")
+    return info
+
+
 def seed_database(
     db_path: Path = DB_PATH,
     sql_path: Path = SQL_PATH,
     sprites_dir: Path = SPRITES_DIR,
     large_dir: Path = LARGE_DIR,
+    shiny_dir: Path = SHINY_DIR,
     max_pokemon: int = 151,
 ) -> None:
     """
@@ -120,20 +138,20 @@ def seed_database(
     sql_path = Path(sql_path)
     sprites_dir = Path(sprites_dir)
     large_dir = Path(large_dir)
+    shiny_dir = Path(shiny_dir)
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    pokemon_records = []
-    for pokemon_id in range(1, max_pokemon + 1):
-        pokemon_data = get_pokemon_data(pokemon_id)
-        species_data = get_pokemon_species_data(pokemon_id)
-        info = extract_pokemon_info(pokemon_data, species_data)
-        pokemon_records.append(info)
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        futures = [
+            executor.submit(
+                _fetch_and_prepare, pokemon_id, sprites_dir, shiny_dir, large_dir
+            )
+            for pokemon_id in range(1, max_pokemon + 1)
+        ]
+        pokemon_records = [f.result() for f in futures]
 
-        sprite_path = sprites_dir / f"{pokemon_id}.png"
-        large_path = large_dir / f"{pokemon_id}.png"
-        download_image(info["sprite_url"], sprite_path)
-        download_image(info["large_url"], large_path)
+    pokemon_records.sort(key=lambda r: r["id"])
 
     conn = sqlite3.connect(str(db_path))
     try:
