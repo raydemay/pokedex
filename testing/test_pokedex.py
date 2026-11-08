@@ -317,37 +317,40 @@ def test_navigation_and_no_widget_leaks(qapp, temp_db):
 
 
 def test_default_pokedex_db_and_base_dir_paths(qapp, monkeypatch, tmp_path):
-    """Verify PokedexApp initializes cleanly from any working directory using BASE_DIR and supports Gen 1 + Gen 2 regional filtering."""
+    """Verify PokedexApp initializes cleanly from any working directory using BASE_DIR and supports Gen 1-9 regional filtering."""
     monkeypatch.chdir(tmp_path)
     app_win = pokedex_main.PokedexApp()
     try:
-        # National Dex has 251 Pokémon (Gen 1 + Gen 2)
-        assert app_win.pokedex_page.pokemon_list.count() == 251
+        # National Dex has 1025 Pokémon (Generations 1-9)
+        assert app_win.pokedex_page.pokemon_list.count() == 1025
         assert app_win.trainer_card_page.name_label.text().startswith("Name: ")
 
         # Main menu Pokédex button opens RegionSelectPage first
         app_win.main_menu.pokedex_button.click()
         assert app_win.stacked_widget.currentWidget() is app_win.region_select_page
 
-        # Selecting Kanto filters to 151 Pokémon (#1 - #151)
-        app_win.region_select_page.kanto_button.click()
-        assert app_win.stacked_widget.currentWidget() is app_win.pokedex_page
-        assert app_win.pokedex_page.pokemon_list.count() == 151
-        assert app_win.pokedex_page.pokemon_list.item(0).text().startswith("1: BULBASAUR")
+        expected_regions = {
+            "Kanto": (151, "1: BULBASAUR"),
+            "Johto": (100, "152: CHIKORITA"),
+            "Hoenn": (135, "252: TREECKO"),
+            "Sinnoh": (107, "387: TURTWIG"),
+            "Unova": (156, "494: VICTINI"),
+            "Kalos": (72, "650: CHESPIN"),
+            "Alola": (88, "722: ROWLET"),
+            "Galar": (96, "810: GROOKEY"),
+            "Paldea": (120, "906: SPRIGATITO"),
+        }
+        for region_name, (expected_count, first_entry) in expected_regions.items():
+            app_win.region_select_page.region_buttons[region_name].click()
+            assert app_win.stacked_widget.currentWidget() is app_win.pokedex_page
+            assert app_win.pokedex_page.pokemon_list.count() == expected_count
+            assert app_win.pokedex_page.pokemon_list.item(0).text().startswith(first_entry)
+            app_win.pokedex_page.back_button.click()
+            assert app_win.stacked_widget.currentWidget() is app_win.region_select_page
 
-        # Back button on PokedexPage returns to RegionSelectPage
-        app_win.pokedex_page.back_button.click()
-        assert app_win.stacked_widget.currentWidget() is app_win.region_select_page
-
-        # Selecting Johto filters to 100 Gen 2 Pokémon (#152 - #251)
-        app_win.region_select_page.johto_button.click()
-        assert app_win.stacked_widget.currentWidget() is app_win.pokedex_page
-        assert app_win.pokedex_page.pokemon_list.count() == 100
-        assert app_win.pokedex_page.pokemon_list.item(0).text().startswith("152: CHIKORITA")
-
-        # Selecting National shows all 251 Pokémon
+        # Selecting National shows all 1025 Pokémon
         app_win.region_select_page.national_button.click()
-        assert app_win.pokedex_page.pokemon_list.count() == 251
+        assert app_win.pokedex_page.pokemon_list.count() == 1025
 
         # Verify Gen 1 (#1) and Gen 2 (#152) descriptions and shiny sprites load
         app_win.pokemon_page.load_pokemon(1)
