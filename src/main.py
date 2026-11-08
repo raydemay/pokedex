@@ -6,7 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QLoggingCategory, QSize, Qt
 from PyQt6.QtGui import (
     QCloseEvent,
     QFontDatabase,
@@ -30,6 +30,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+QLoggingCategory.setFilterRules("qt.gui.imageio.warning=false")
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "database" / "pokedex.db"
 SPRITES_DIR = BASE_DIR / "images" / "pokemon" / "sprites"
@@ -44,6 +46,13 @@ DEX_REGIONS: dict[str, tuple[int, int] | None] = {
     "National": None,
     "Kanto": (1, 151),
     "Johto": (152, 251),
+    "Hoenn": (252, 386),
+    "Sinnoh": (387, 493),
+    "Unova": (494, 649),
+    "Kalos": (650, 721),
+    "Alola": (722, 809),
+    "Galar": (810, 905),
+    "Paldea": (906, 1025),
 }
 
 
@@ -110,19 +119,29 @@ class RegionSelectPage(QWidget):
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self.name_label)
 
+        grid_widget = QWidget()
+        grid_layout = QGridLayout(grid_widget)
         self.region_buttons: dict[str, QPushButton] = {}
-        for region_name in DEX_REGIONS:
-            btn = QPushButton(f"{region_name} Pokédex")
+        for idx, region_name in enumerate(DEX_REGIONS):
+            btn = QPushButton(region_name)
             _connect(
                 btn.clicked,
                 lambda _checked=False, r=region_name: self.select_region(r),
             )
-            layout.addWidget(btn)
+            grid_layout.addWidget(btn, idx // 2, idx % 2)
             self.region_buttons[region_name] = btn
+        layout.addWidget(grid_widget)
 
         self.national_button: QPushButton = self.region_buttons["National"]
         self.kanto_button: QPushButton = self.region_buttons["Kanto"]
         self.johto_button: QPushButton = self.region_buttons["Johto"]
+        self.hoenn_button: QPushButton = self.region_buttons["Hoenn"]
+        self.sinnoh_button: QPushButton = self.region_buttons["Sinnoh"]
+        self.unova_button: QPushButton = self.region_buttons["Unova"]
+        self.kalos_button: QPushButton = self.region_buttons["Kalos"]
+        self.alola_button: QPushButton = self.region_buttons["Alola"]
+        self.galar_button: QPushButton = self.region_buttons["Galar"]
+        self.paldea_button: QPushButton = self.region_buttons["Paldea"]
 
         self.back_button = QPushButton("Back")
         _connect(

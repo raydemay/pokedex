@@ -1,6 +1,6 @@
 # Raspberry Pi Pokédex Project
 
-This project aims to create a fun and interactive Pokédex application using a Raspberry Pi Zero 2 W and a small TFT display. The Pokédex allows users to browse through Generation 1 and Generation 2 Pokémon (National, Kanto, and Johto Pokédexes), view their details, descriptions, shiny sprites, and evolutionary lines, and track their "caught" progress offline.
+This project aims to create a fun and interactive Pokédex application using a Raspberry Pi Zero 2 W and a small TFT display. The Pokédex allows users to browse through all 1,025 Pokémon across Generations 1–9 (National, Kanto, Johto, Hoenn, Sinnoh, Unova, Kalos, Alola, Galar, and Paldea Pokédexes), view their details, descriptions, shiny sprites, and evolutionary lines, and track their "caught" progress offline.
 
 ![Application Settings Menu](docs/pokedex_menus.png)
 ![Pokedex](docs/pokedex_list.png)
@@ -19,13 +19,13 @@ This project aims to create a fun and interactive Pokédex application using a R
 
 - **Database (`database/`):**
   - Designed an SQLite database (`database/pokedex.db`) defined in `database/create_tables.sql` with `pokemon`, `evolutions` (`UNIQUE(from_pokemon, to_pokemon)`), and `trainers` tables.
-  - Built a unified, cross-platform seeding script (`database/seed_database.py`) using `pathlib.Path` that populates all 251 Generation 1 & Generation 2 Pokémon, cleaned English flavor text descriptions, cross-generational evolution chains, and a default trainer row in a single SQLite transaction.
-  - Downloaded and cached all 251 small list sprites (`images/pokemon/sprites/`), shiny sprites (`images/pokemon/shiny/`), and large official artwork (`images/pokemon/large/`) for offline use.
+  - Built a unified, cross-platform seeding script (`database/seed_database.py`) using `pathlib.Path` that populates all 1,025 Pokémon (Generations 1–9), cleaned English flavor text descriptions, cross-generational evolution chains, and a default trainer row in a single SQLite transaction.
+  - Downloaded and cached all 1,025 small list sprites (`images/pokemon/sprites/`), shiny sprites (`images/pokemon/shiny/`), and large official artwork (`images/pokemon/large/`) for offline use.
 
 - **Application Interface (`src/`):**
   - Developed a multi-page PyQt6 interface (`src/main.py`) with cross-platform path resolution anchored to `BASE_DIR`.
   - **`MainMenu`:** Navigation hub for Pokédex, Trainer Card, and Settings.
-  - **`RegionSelectPage`:** Allows selecting between the **National Pokédex** (all 251 Pokémon) and regional Pokédexes (**Kanto** `#1–#151`, **Johto** `#152–#251`), structured via `DEX_REGIONS` so additional generations can be added easily.
+  - **`RegionSelectPage`:** 2-column grid menu allowing selection between the **National Pokédex** (all 1,025 Pokémon) and all 9 regional Pokédexes (**Kanto** `#1–#151`, **Johto** `#152–#251`, **Hoenn** `#252–#386`, **Sinnoh** `#387–#493`, **Unova** `#494–#649`, **Kalos** `#650–#721`, **Alola** `#722–#809`, **Galar** `#810–#905`, **Paldea** `#906–#1025`).
   - **`PokedexPage`:** Scrollable list of Pokémon filtered by the selected Pokédex region with sprite icons, using `itemActivated` so Up/Down arrow keys (and future GPIO buttons) scroll smoothly without auto-opening entries.
   - **`PokemonPage`:** Single reusable detail page (preventing widget and database connection leaks) displaying the Pokémon ID, name, official artwork, shiny sprite, Type1/Type2 badges, word-wrapped Pokédex description, clickable evolution navigation buttons, and a persistent "Caught" toggle button saved directly to SQLite.
   - **`TrainerCardPage`:** Dynamically queries `trainers` (`trainer_name`, `badges_earned`) and the live count of caught Pokémon (`SELECT COUNT(*) FROM pokemon WHERE caught = 1`) whenever the page is shown (`showEvent`).
