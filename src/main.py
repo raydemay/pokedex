@@ -1,22 +1,34 @@
-import sys
-import sqlite3
-from pathlib import Path
+from __future__ import annotations
 
+import sqlite3
+import sys
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import (
+    QCloseEvent,
+    QFontDatabase,
+    QIcon,
+    QKeySequence,
+    QPixmap,
+    QShortcut,
+    QShowEvent,
+)
 from PyQt6.QtWidgets import (
     QApplication,
-    QMainWindow,
+    QGridLayout,
+    QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
-    QVBoxLayout,
-    QHBoxLayout,
-    QWidget,
+    QMainWindow,
     QPushButton,
     QStackedWidget,
-    QGridLayout,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtGui import QPixmap, QKeySequence, QShortcut, QFontDatabase, QIcon
-from PyQt6.QtCore import Qt, QSize
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "database" / "pokedex.db"
@@ -28,53 +40,128 @@ FONT_PATH = BASE_DIR / "src" / "fonts" / "PKMN_RBYGSC.ttf"
 STYLES_PATH = BASE_DIR / "src" / "styles.qss"
 DARK_STYLES_PATH = BASE_DIR / "src" / "dark_styles.qss"
 
+DEX_REGIONS: dict[str, tuple[int, int] | None] = {
+    "National": None,
+    "Kanto": (1, 151),
+    "Johto": (152, 251),
+}
+
+
+def _connect(signal: Any, slot: Callable[..., Any]) -> None:
+    """Connect a Qt signal to a callable slot without triggering PyQt6 ClassVar stub errors."""
+    signal.connect(slot)
+
 
 class MainMenu(QWidget):
     """The main menu of the application, containing buttons for different sections."""
 
-    def __init__(self, stacked_widget: QStackedWidget):
+    def __init__(
+        self,
+        stacked_widget: QStackedWidget,
+        region_select_page: QWidget | None = None,
+    ) -> None:
         super().__init__()
-        self.stacked_widget = stacked_widget
-        self.layout = QVBoxLayout(self)
+        self.stacked_widget: QStackedWidget = stacked_widget
+        self.region_select_page: QWidget | None = region_select_page
+        layout = QVBoxLayout(self)
 
         self.pokedex_button = QPushButton("Pokédex")
-        self.pokedex_button.clicked.connect(
-            lambda: [self.hide(), stacked_widget.setCurrentIndex(0)]
-        )
-        self.layout.addWidget(self.pokedex_button)
+        _connect(self.pokedex_button.clicked, self._open_pokedex_menu)
+        layout.addWidget(self.pokedex_button)
 
         self.trainer_card_button = QPushButton("Trainer Card")
-        self.trainer_card_button.clicked.connect(
-            lambda: [self.hide(), stacked_widget.setCurrentIndex(1)]
+        _connect(
+            self.trainer_card_button.clicked,
+            lambda: [self.hide(), stacked_widget.setCurrentIndex(1)],
         )
-        self.layout.addWidget(self.trainer_card_button)
+        layout.addWidget(self.trainer_card_button)
 
         self.settings_button = QPushButton("Settings")
-        self.settings_button.clicked.connect(
-            lambda: [self.hide(), stacked_widget.setCurrentIndex(2)]
+        _connect(
+            self.settings_button.clicked,
+            lambda: [self.hide(), stacked_widget.setCurrentIndex(2)],
         )
-        self.layout.addWidget(self.settings_button)
+        layout.addWidget(self.settings_button)
+
+    def _open_pokedex_menu(self) -> None:
+        self.hide()
+        if self.region_select_page is not None:
+            self.stacked_widget.setCurrentWidget(self.region_select_page)
+        else:
+            self.stacked_widget.setCurrentIndex(0)
 
 
-class PokedexPage(QWidget):
-    """Scrollable list page of all Pokémon in the Pokédex."""
+class RegionSelectPage(QWidget):
+    """Page allowing the user to choose the National Dex or a Regional Pokédex."""
 
     def __init__(
         self,
         stacked_widget: QStackedWidget,
         main_menu: QWidget,
-        pokemon_page: "PokemonPage | None" = None,
-        db_path: Path | str | None = None,
-    ):
+        pokedex_page: PokedexPage,
+    ) -> None:
         super().__init__()
-        self.stacked_widget = stacked_widget
-        self.main_menu = main_menu
-        self.pokemon_page = pokemon_page
-        self.db_path = Path(db_path) if db_path else DB_PATH
+        self.stacked_widget: QStackedWidget = stacked_widget
+        self.main_menu: QWidget = main_menu
+        self.pokedex_page: PokedexPage = pokedex_page
+
+        layout = QVBoxLayout(self)
+        self.name_label = QLabel("Select a Pokédex")
+        self.name_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self.name_label)
+
+        self.region_buttons: dict[str, QPushButton] = {}
+        for region_name in DEX_REGIONS:
+            btn = QPushButton(f"{region_name} Pokédex")
+            _connect(
+                btn.clicked,
+                lambda _checked=False, r=region_name: self.select_region(r),
+            )
+            layout.addWidget(btn)
+            self.region_buttons[region_name] = btn
+
+        self.national_button: QPushButton = self.region_buttons["National"]
+        self.kanto_button: QPushButton = self.region_buttons["Kanto"]
+        self.johto_button: QPushButton = self.region_buttons["Johto"]
+
+        self.back_button = QPushButton("Back")
+        _connect(
+            self.back_button.clicked,
+            lambda: [
+                self.stacked_widget.setCurrentWidget(self.main_menu),
+                self.main_menu.show(),
+            ],
+        )
+        layout.addWidget(self.back_button)
+
+    def select_region(self, region: str) -> None:
+        """Filter PokedexPage by the selected region and navigate to it."""
+        self.pokedex_page.load_region(region)
+        self.stacked_widget.setCurrentWidget(self.pokedex_page)
+
+
+class PokedexPage(QWidget):
+    """Scrollable list page of Pokémon in the selected Pokédex."""
+
+    def __init__(
+        self,
+        stacked_widget: QStackedWidget,
+        main_menu: QWidget,
+        pokemon_page: PokemonPage | None = None,
+        region_select_page: QWidget | None = None,
+        db_path: Path | str | None = None,
+    ) -> None:
+        super().__init__()
+        self.stacked_widget: QStackedWidget = stacked_widget
+        self.main_menu: QWidget = main_menu
+        self.pokemon_page: PokemonPage | None = pokemon_page
+        self.region_select_page: QWidget | None = region_select_page
+        self.db_path: Path = Path(db_path) if db_path else DB_PATH
+        self.current_region: str = "National"
+        self.pokemon_names: list[tuple[str, str]] = []
 
         self.conn = sqlite3.connect(str(self.db_path))
-        self.cursor = self.conn.cursor()
-        self.pokemon_names = self.get_pokemon_names()
+        self.db_cursor = self.conn.cursor()
 
         layout = QVBoxLayout(self)
         self.name_label = QLabel("Select a Pokémon")
@@ -84,6 +171,43 @@ class PokedexPage(QWidget):
         self.pokemon_list = QListWidget()
         self.pokemon_list.setViewMode(QListWidget.ViewMode.ListMode)
         self.pokemon_list.setIconSize(QSize(60, 60))
+
+        # Open PokemonPage only when an item is explicitly activated (Enter/double-click)
+        _connect(self.pokemon_list.itemActivated, self.show_pokemon_page)
+        layout.addWidget(self.pokemon_list)
+
+        self.back_button = QPushButton("Back")
+        _connect(self.back_button.clicked, self._go_back)
+        layout.addWidget(self.back_button)
+
+        self.load_region("National")
+
+    def _go_back(self) -> None:
+        if self.region_select_page is not None:
+            self.stacked_widget.setCurrentWidget(self.region_select_page)
+        else:
+            self.stacked_widget.setCurrentWidget(self.main_menu)
+            self.main_menu.show()
+
+    def get_pokemon_names(self, region: str = "National") -> list[tuple[str, str]]:
+        """Retrieve (id, name) tuples from the database for the given region."""
+        id_range = DEX_REGIONS.get(region)
+        if id_range is not None:
+            start_id, end_id = id_range
+            self.db_cursor.execute(
+                "SELECT id, name FROM pokemon WHERE id BETWEEN ? AND ? ORDER BY id",
+                (start_id, end_id),
+            )
+        else:
+            self.db_cursor.execute("SELECT id, name FROM pokemon ORDER BY id")
+        return [(str(row[0]), row[1]) for row in self.db_cursor.fetchall()]
+
+    def load_region(self, region: str = "National") -> None:
+        """Populate pokemon_list with Pokémon belonging to the specified region."""
+        self.current_region = region
+        self.pokemon_names = self.get_pokemon_names(region)
+        self.name_label.setText(f"{region} Pokédex")
+        self.pokemon_list.clear()
         for pokemon_id, name in self.pokemon_names:
             item = QListWidgetItem(f"{pokemon_id}: {name.upper()}")
             icon_path = SPRITES_DIR / f"{pokemon_id}.png"
@@ -91,25 +215,11 @@ class PokedexPage(QWidget):
             item.setIcon(icon)
             self.pokemon_list.addItem(item)
 
-        # Open PokemonPage only when an item is explicitly activated (Enter/double-click)
-        self.pokemon_list.itemActivated.connect(self.show_pokemon_page)
-        layout.addWidget(self.pokemon_list)
-
-        self.back_button = QPushButton("Back")
-        self.back_button.clicked.connect(
-            lambda: [
-                self.stacked_widget.setCurrentWidget(self.main_menu),
-                self.main_menu.show(),
-            ]
-        )
-        layout.addWidget(self.back_button)
-
-    def get_pokemon_names(self) -> list[tuple[str, str]]:
-        """Retrieve (id, name) tuples from the database."""
-        self.cursor.execute("SELECT id, name FROM pokemon ORDER BY id")
-        return [(str(row[0]), row[1]) for row in self.cursor.fetchall()]
-
-    def show_pokemon_page(self, item_or_stack, maybe_item: QListWidgetItem | None = None):
+    def show_pokemon_page(
+        self,
+        item_or_stack: QListWidgetItem | QStackedWidget | None,
+        maybe_item: QListWidgetItem | None = None,
+    ) -> None:
         """
         Display the reusable PokemonPage for the activated Pokémon item.
         Supports both `show_pokemon_page(item)` and `show_pokemon_page(stacked_widget, item)`.
@@ -121,7 +231,7 @@ class PokedexPage(QWidget):
             stacked_widget = self.stacked_widget
             current_item = item_or_stack
 
-        if current_item is not None:
+        if isinstance(current_item, QListWidgetItem):
             pokemon_id_str = current_item.text().split(":")[0].strip()
             pokemon_id = int(pokemon_id_str)
             if self.pokemon_page is None:
@@ -142,16 +252,16 @@ class PokemonPage(QWidget):
         pokedex_page: QWidget,
         pokemon_id: int | str | None = None,
         db_path: Path | str | None = None,
-    ):
+    ) -> None:
         super().__init__()
-        self.stacked_widget = stacked_widget
-        self.pokedex_page = pokedex_page
-        self.db_path = Path(db_path) if db_path else DB_PATH
+        self.stacked_widget: QStackedWidget = stacked_widget
+        self.pokedex_page: QWidget = pokedex_page
+        self.db_path: Path = Path(db_path) if db_path else DB_PATH
         self.current_pokemon_id: int | None = None
         self._caught: bool = False
 
         self.conn = sqlite3.connect(str(self.db_path))
-        self.cursor = self.conn.cursor()
+        self.db_cursor = self.conn.cursor()
 
         layout = QVBoxLayout(self)
 
@@ -209,13 +319,14 @@ class PokemonPage(QWidget):
         # Caught toggle button
         self.caught_button = QPushButton("Caught: No")
         self.caught_button.setCheckable(True)
-        self.caught_button.clicked.connect(self.toggle_caught)
+        _connect(self.caught_button.clicked, self.toggle_caught)
         layout.addWidget(self.caught_button)
 
         # Back button
         self.back_button = QPushButton("Back")
-        self.back_button.clicked.connect(
-            lambda: self.stacked_widget.setCurrentWidget(self.pokedex_page)
+        _connect(
+            self.back_button.clicked,
+            lambda: self.stacked_widget.setCurrentWidget(self.pokedex_page),
         )
         layout.addWidget(self.back_button)
 
@@ -225,7 +336,7 @@ class PokemonPage(QWidget):
     def load_pokemon(self, pokemon_id: int | str) -> None:
         """Load and display all database fields and evolutions for the given pokemon_id."""
         self.current_pokemon_id = int(pokemon_id)
-        self.cursor.execute(
+        self.db_cursor.execute(
             """
             SELECT id, name, Type1, Type2, image_file, caught, description
             FROM pokemon
@@ -233,7 +344,7 @@ class PokemonPage(QWidget):
             """,
             (self.current_pokemon_id,),
         )
-        result = self.cursor.fetchone()
+        result = self.db_cursor.fetchone()
         if not result:
             return
 
@@ -288,7 +399,9 @@ class PokemonPage(QWidget):
 
         self._load_evolutions(pid)
 
-    fetch_pokemon_info = load_pokemon
+    def fetch_pokemon_info(self, pokemon_id: int | str) -> None:
+        """Alias for load_pokemon."""
+        self.load_pokemon(pokemon_id)
 
     def _load_evolutions(self, pokemon_id: int) -> None:
         """Query the evolutions table and populate evolution link buttons."""
@@ -297,7 +410,7 @@ class PokemonPage(QWidget):
             btn.deleteLater()
         self.evolution_buttons.clear()
 
-        self.cursor.execute(
+        self.db_cursor.execute(
             """
             SELECT p.id, p.name
             FROM evolutions e
@@ -307,9 +420,9 @@ class PokemonPage(QWidget):
             """,
             (pokemon_id,),
         )
-        evolves_from = self.cursor.fetchall()
+        evolves_from = self.db_cursor.fetchall()
 
-        self.cursor.execute(
+        self.db_cursor.execute(
             """
             SELECT p.id, p.name
             FROM evolutions e
@@ -319,14 +432,15 @@ class PokemonPage(QWidget):
             """,
             (pokemon_id,),
         )
-        evolves_to = self.cursor.fetchall()
+        evolves_to = self.db_cursor.fetchall()
 
         parts = []
         for evo_id, evo_name in evolves_from:
             parts.append(f"From: {evo_name.capitalize()}")
             btn = QPushButton(f"← #{evo_id} {evo_name.capitalize()}")
-            btn.clicked.connect(
-                lambda _checked=False, target_id=evo_id: self.load_pokemon(target_id)
+            _connect(
+                btn.clicked,
+                lambda _checked=False, target_id=evo_id: self.load_pokemon(target_id),
             )
             self.evolutions_layout.addWidget(btn)
             self.evolution_buttons.append(btn)
@@ -334,8 +448,9 @@ class PokemonPage(QWidget):
         for evo_id, evo_name in evolves_to:
             parts.append(f"To: {evo_name.capitalize()}")
             btn = QPushButton(f"→ #{evo_id} {evo_name.capitalize()}")
-            btn.clicked.connect(
-                lambda _checked=False, target_id=evo_id: self.load_pokemon(target_id)
+            _connect(
+                btn.clicked,
+                lambda _checked=False, target_id=evo_id: self.load_pokemon(target_id),
             )
             self.evolutions_layout.addWidget(btn)
             self.evolution_buttons.append(btn)
@@ -350,7 +465,7 @@ class PokemonPage(QWidget):
         if self.current_pokemon_id is None:
             return
         new_caught = 0 if self._caught else 1
-        self.cursor.execute(
+        self.db_cursor.execute(
             "UPDATE pokemon SET caught = ? WHERE id = ?",
             (new_caught, self.current_pokemon_id),
         )
@@ -370,14 +485,14 @@ class TrainerCardPage(QWidget):
         stacked_widget: QStackedWidget,
         main_menu: QWidget,
         db_path: Path | str | None = None,
-    ):
+    ) -> None:
         super().__init__()
-        self.stacked_widget = stacked_widget
-        self.main_menu = main_menu
-        self.db_path = Path(db_path) if db_path else DB_PATH
+        self.stacked_widget: QStackedWidget = stacked_widget
+        self.main_menu: QWidget = main_menu
+        self.db_path: Path = Path(db_path) if db_path else DB_PATH
 
         self.conn = sqlite3.connect(str(self.db_path))
-        self.cursor = self.conn.cursor()
+        self.db_cursor = self.conn.cursor()
 
         layout = QVBoxLayout(self)
 
@@ -419,11 +534,12 @@ class TrainerCardPage(QWidget):
         button_widget = QWidget()
         button_layout = QHBoxLayout(button_widget)
         self.back_button = QPushButton("Back")
-        self.back_button.clicked.connect(
+        _connect(
+            self.back_button.clicked,
             lambda: [
                 self.stacked_widget.setCurrentWidget(self.main_menu),
                 self.main_menu.show(),
-            ]
+            ],
         )
         button_layout.addWidget(self.back_button)
         layout.addWidget(button_widget)
@@ -432,26 +548,26 @@ class TrainerCardPage(QWidget):
 
     def refresh_trainer_info(self) -> None:
         """Query trainers and caught Pokémon count from SQLite and update labels."""
-        self.cursor.execute(
+        self.db_cursor.execute(
             "SELECT trainer_name, badges_earned FROM trainers ORDER BY trainer_id LIMIT 1"
         )
-        trainer_row = self.cursor.fetchone()
+        trainer_row = self.db_cursor.fetchone()
         if trainer_row:
             trainer_name, badges_earned = trainer_row[0], trainer_row[1]
         else:
             trainer_name, badges_earned = "ASH", 0
 
-        self.cursor.execute("SELECT COUNT(*) FROM pokemon WHERE caught = 1")
-        caught_row = self.cursor.fetchone()
+        self.db_cursor.execute("SELECT COUNT(*) FROM pokemon WHERE caught = 1")
+        caught_row = self.db_cursor.fetchone()
         caught_count = caught_row[0] if caught_row else 0
 
         self.name_label.setText(f"Name: {trainer_name}")
         self.caught_label.setText(f"Caught: {caught_count}")
         self.badges_label.setText(f"Badges: {badges_earned}")
 
-    def showEvent(self, event) -> None:
+    def showEvent(self, a0: QShowEvent | None) -> None:
         """Refresh trainer info and caught count every time the page is shown."""
-        super().showEvent(event)
+        super().showEvent(a0)
         self.refresh_trainer_info()
 
 
@@ -462,13 +578,13 @@ class SettingsPage(QWidget):
         self,
         stacked_widget: QStackedWidget,
         main_menu: QWidget,
-        app_window: "PokedexApp | None" = None,
-    ):
+        app_window: PokedexApp | None = None,
+    ) -> None:
         super().__init__()
-        self.stacked_widget = stacked_widget
-        self.main_menu = main_menu
-        self.app_window = app_window
-        self.dark_mode = False
+        self.stacked_widget: QStackedWidget = stacked_widget
+        self.main_menu: QWidget = main_menu
+        self.app_window: PokedexApp | None = app_window
+        self.dark_mode: bool = False
 
         layout = QVBoxLayout(self)
         self.name_label = QLabel("Settings")
@@ -477,15 +593,16 @@ class SettingsPage(QWidget):
 
         self.theme_button = QPushButton("Theme: Light Mode")
         self.theme_button.setCheckable(True)
-        self.theme_button.clicked.connect(self.toggle_theme)
+        _connect(self.theme_button.clicked, self.toggle_theme)
         layout.addWidget(self.theme_button)
 
         self.back_button = QPushButton("Back")
-        self.back_button.clicked.connect(
+        _connect(
+            self.back_button.clicked,
             lambda: [
                 stacked_widget.setCurrentWidget(main_menu),
                 main_menu.show(),
-            ]
+            ],
         )
         layout.addWidget(self.back_button)
 
@@ -506,10 +623,11 @@ class SettingsPage(QWidget):
 class PokedexApp(QMainWindow):
     """Main window managing stacked pages of the Pokédex application."""
 
-    def __init__(self, db_path: Path | str | None = None):
+    def __init__(self, db_path: Path | str | None = None) -> None:
         super().__init__()
-        self.db_path = Path(db_path) if db_path else DB_PATH
-        self.dark_mode = False
+        self.db_path: Path = Path(db_path) if db_path else DB_PATH
+        self.dark_mode: bool = False
+        self.custom_font_family: str = "Arial"
         self.setWindowTitle("Pokédex")
         self.setFixedSize(640, 640)
         self.bind_keys()
@@ -522,6 +640,11 @@ class PokedexApp(QMainWindow):
         self.pokedex_page = PokedexPage(
             self.stacked_widget, self.main_menu, db_path=self.db_path
         )
+        self.region_select_page = RegionSelectPage(
+            self.stacked_widget, self.main_menu, self.pokedex_page
+        )
+        self.main_menu.region_select_page = self.region_select_page
+        self.pokedex_page.region_select_page = self.region_select_page
         self.pokemon_page = PokemonPage(
             self.stacked_widget, self.pokedex_page, db_path=self.db_path
         )
@@ -538,6 +661,7 @@ class PokedexApp(QMainWindow):
         self.stacked_widget.addWidget(self.settings_page)
         self.stacked_widget.addWidget(self.main_menu)
         self.stacked_widget.addWidget(self.pokemon_page)
+        self.stacked_widget.addWidget(self.region_select_page)
 
         self.stacked_widget.setCurrentWidget(self.main_menu)
         self.apply_theme(self.dark_mode)
@@ -550,7 +674,7 @@ class PokedexApp(QMainWindow):
             style = target_qss.read_text(encoding="utf-8")
             self.setStyleSheet(style)
             app_instance = QApplication.instance()
-            if app_instance is not None:
+            if isinstance(app_instance, QApplication):
                 app_instance.setStyleSheet(style)
 
     def load_custom_font(self) -> None:
@@ -563,9 +687,9 @@ class PokedexApp(QMainWindow):
 
     def bind_keys(self) -> None:
         shortcut = QShortcut(QKeySequence("Esc"), self)
-        shortcut.activated.connect(self.showNormal)
+        _connect(shortcut.activated, self.showNormal)
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, a0: QCloseEvent | None) -> None:
         for page in (self.pokedex_page, self.pokemon_page, self.trainer_card_page):
             conn = getattr(page, "conn", None)
             if conn is not None:
@@ -573,7 +697,7 @@ class PokedexApp(QMainWindow):
                     conn.close()
                 except Exception:
                     pass
-        super().closeEvent(event)
+        super().closeEvent(a0)
 
 
 if __name__ == "__main__":

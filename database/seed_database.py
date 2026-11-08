@@ -37,14 +37,14 @@ def clean_flavor_text(text: str) -> str:
 
 
 def extract_english_description(species_data: dict) -> str:
-    """Extract the English Gen 1 flavor text (or fallback English entry) from species data."""
+    """Extract the English Gen 1/Gen 2 flavor text (or fallback English entry) from species data."""
     entries = species_data.get("flavor_text_entries", [])
-    gen1_versions = {"red", "blue", "yellow"}
+    classic_versions = {"red", "blue", "yellow", "gold", "silver", "crystal"}
 
     for entry in entries:
         lang = entry.get("language", {}).get("name")
         version = entry.get("version", {}).get("name")
-        if lang == "en" and version in gen1_versions:
+        if lang == "en" and version in classic_versions:
             return clean_flavor_text(entry.get("flavor_text", ""))
 
     for entry in entries:
@@ -128,10 +128,10 @@ def seed_database(
     sprites_dir: Path = SPRITES_DIR,
     large_dir: Path = LARGE_DIR,
     shiny_dir: Path = SHINY_DIR,
-    max_pokemon: int = 151,
+    max_pokemon: int = 251,
 ) -> None:
     """
-    Create tables, seed a default trainer if empty, and populate all Gen 1 Pokémon
+    Create tables, seed a default trainer if empty, and populate all Gen 1 & Gen 2 Pokémon
     and their evolutions in a single SQLite transaction.
     """
     db_path = Path(db_path)

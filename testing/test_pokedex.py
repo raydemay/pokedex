@@ -317,16 +317,47 @@ def test_navigation_and_no_widget_leaks(qapp, temp_db):
 
 
 def test_default_pokedex_db_and_base_dir_paths(qapp, monkeypatch, tmp_path):
-    """Verify PokedexApp initializes cleanly from any working directory using BASE_DIR and loads description + shiny sprite."""
+    """Verify PokedexApp initializes cleanly from any working directory using BASE_DIR and supports Gen 1 + Gen 2 regional filtering."""
     monkeypatch.chdir(tmp_path)
     app_win = pokedex_main.PokedexApp()
     try:
-        assert app_win.pokedex_page.pokemon_list.count() == 151
+        # National Dex has 251 Pokémon (Gen 1 + Gen 2)
+        assert app_win.pokedex_page.pokemon_list.count() == 251
         assert app_win.trainer_card_page.name_label.text().startswith("Name: ")
 
+        # Main menu Pokédex button opens RegionSelectPage first
+        app_win.main_menu.pokedex_button.click()
+        assert app_win.stacked_widget.currentWidget() is app_win.region_select_page
+
+        # Selecting Kanto filters to 151 Pokémon (#1 - #151)
+        app_win.region_select_page.kanto_button.click()
+        assert app_win.stacked_widget.currentWidget() is app_win.pokedex_page
+        assert app_win.pokedex_page.pokemon_list.count() == 151
+        assert app_win.pokedex_page.pokemon_list.item(0).text().startswith("1: BULBASAUR")
+
+        # Back button on PokedexPage returns to RegionSelectPage
+        app_win.pokedex_page.back_button.click()
+        assert app_win.stacked_widget.currentWidget() is app_win.region_select_page
+
+        # Selecting Johto filters to 100 Gen 2 Pokémon (#152 - #251)
+        app_win.region_select_page.johto_button.click()
+        assert app_win.stacked_widget.currentWidget() is app_win.pokedex_page
+        assert app_win.pokedex_page.pokemon_list.count() == 100
+        assert app_win.pokedex_page.pokemon_list.item(0).text().startswith("152: CHIKORITA")
+
+        # Selecting National shows all 251 Pokémon
+        app_win.region_select_page.national_button.click()
+        assert app_win.pokedex_page.pokemon_list.count() == 251
+
+        # Verify Gen 1 (#1) and Gen 2 (#152) descriptions and shiny sprites load
         app_win.pokemon_page.load_pokemon(1)
         assert "strange seed" in app_win.pokemon_page.description_label.text()
         assert app_win.pokemon_page.shiny_image_label.pixmap() is not None
+        assert not app_win.pokemon_page.shiny_image_label.pixmap().isNull()
+
+        app_win.pokemon_page.load_pokemon(152)
+        assert app_win.pokemon_page.name_label.text() == "Chikorita"
+        assert len(app_win.pokemon_page.description_label.text()) > 0
         assert not app_win.pokemon_page.shiny_image_label.pixmap().isNull()
 
         # Verify Light/Dark mode switch in SettingsPage
