@@ -74,9 +74,15 @@ This project is built with Python 3.13 and PyQt6.
    python database/seed_database.py
    ```
 3. Launch the Pokédex application (can be run from any working directory):
-   ```bash
-   python src/main.py
-   ```
+   - Standard 640×640 Square Display:
+     ```bash
+     python src/main.py
+     ```
+   - 1.75-inch 466×466 Round Touch Display:
+     ```bash
+     python src/main_round.py
+     ```
+     *(or `python src/main.py --round`, or toggle between Square and Round modes anytime inside **Settings**)*
 
 ## Running Tests
 

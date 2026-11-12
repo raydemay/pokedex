@@ -9,10 +9,15 @@ from typing import Any
 from PyQt6.QtCore import QLoggingCategory, QSize, Qt
 from PyQt6.QtGui import (
     QCloseEvent,
+    QColor,
     QFontDatabase,
     QIcon,
     QKeySequence,
+    QPainter,
+    QPaintEvent,
+    QPen,
     QPixmap,
+    QRegion,
     QShortcut,
     QShowEvent,
 )
@@ -25,6 +30,7 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QPushButton,
+    QScroller,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -41,6 +47,11 @@ TRAINER_IMAGE_PATH = BASE_DIR / "images" / "trainers" / "trainer.jpeg"
 FONT_PATH = BASE_DIR / "src" / "fonts" / "PKMN_RBYGSC.ttf"
 STYLES_PATH = BASE_DIR / "src" / "styles.qss"
 DARK_STYLES_PATH = BASE_DIR / "src" / "dark_styles.qss"
+ROUND_STYLES_PATH = BASE_DIR / "src" / "round_styles.qss"
+ROUND_DARK_STYLES_PATH = BASE_DIR / "src" / "round_dark_styles.qss"
+
+SQUARE_DISPLAY_SIZE = 640
+ROUND_DISPLAY_SIZE = 466
 
 DEX_REGIONS: dict[str, tuple[int, int] | None] = {
     "National": None,
@@ -191,15 +202,25 @@ class PokedexPage(QWidget):
         self.pokemon_list.setViewMode(QListWidget.ViewMode.ListMode)
         self.pokemon_list.setIconSize(QSize(60, 60))
 
-        # Open PokemonPage only when an item is explicitly activated (Enter/double-click)
+        # Open PokemonPage when an item is activated or tapped in round touch mode
         _connect(self.pokemon_list.itemActivated, self.show_pokemon_page)
+        _connect(self.pokemon_list.itemClicked, self._on_item_clicked)
+        QScroller.grabGesture(
+            self.pokemon_list.viewport(),
+            QScroller.ScrollerGestureType.LeftMouseButtonGesture,
+        )
         layout.addWidget(self.pokemon_list)
 
         self.back_button = QPushButton("Back")
         _connect(self.back_button.clicked, self._go_back)
         layout.addWidget(self.back_button)
 
+        self.touch_single_tap: bool = False
         self.load_region("National")
+
+    def _on_item_clicked(self, item: QListWidgetItem) -> None:
+        if self.touch_single_tap:
+            self.show_pokemon_page(item)
 
     def _go_back(self) -> None:
         if self.region_select_page is not None:
@@ -335,19 +356,23 @@ class PokemonPage(QWidget):
         self.evolution_buttons: list[QPushButton] = []
         layout.addWidget(self.evolutions_container)
 
-        # Caught toggle button
+        # Bottom action row: Caught toggle button and Back button
+        self.actions_layout = QHBoxLayout()
         self.caught_button = QPushButton("Caught: No")
         self.caught_button.setCheckable(True)
         _connect(self.caught_button.clicked, self.toggle_caught)
-        layout.addWidget(self.caught_button)
+        self.actions_layout.addWidget(self.caught_button)
 
-        # Back button
         self.back_button = QPushButton("Back")
         _connect(
             self.back_button.clicked,
             lambda: self.stacked_widget.setCurrentWidget(self.pokedex_page),
         )
-        layout.addWidget(self.back_button)
+        self.actions_layout.addWidget(self.back_button)
+        layout.addLayout(self.actions_layout)
+
+        self.artwork_size: int = 180
+        self.shiny_size: int = 120
 
         if pokemon_id is not None:
             self.load_pokemon(pokemon_id)
@@ -398,8 +423,8 @@ class PokemonPage(QWidget):
         pixmap = QPixmap(str(image_path))
         if not pixmap.isNull():
             pixmap = pixmap.scaled(
-                180,
-                180,
+                self.artwork_size,
+                self.artwork_size,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
@@ -409,8 +434,8 @@ class PokemonPage(QWidget):
         shiny_pixmap = QPixmap(str(shiny_path))
         if not shiny_pixmap.isNull():
             shiny_pixmap = shiny_pixmap.scaled(
-                120,
-                120,
+                self.shiny_size,
+                self.shiny_size,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.FastTransformation,
             )
@@ -591,7 +616,7 @@ class TrainerCardPage(QWidget):
 
 
 class SettingsPage(QWidget):
-    """Application settings page with Light/Dark mode toggle."""
+    """Application settings page with Light/Dark mode and Display mode toggles."""
 
     def __init__(
         self,
@@ -604,6 +629,7 @@ class SettingsPage(QWidget):
         self.main_menu: QWidget = main_menu
         self.app_window: PokedexApp | None = app_window
         self.dark_mode: bool = False
+        self.round_mode: bool = False
 
         layout = QVBoxLayout(self)
         self.name_label = QLabel("Settings")
@@ -614,6 +640,11 @@ class SettingsPage(QWidget):
         self.theme_button.setCheckable(True)
         _connect(self.theme_button.clicked, self.toggle_theme)
         layout.addWidget(self.theme_button)
+
+        self.display_button = QPushButton("Display: Square (640x640)")
+        self.display_button.setCheckable(True)
+        _connect(self.display_button.clicked, self.toggle_display_mode)
+        layout.addWidget(self.display_button)
 
         self.back_button = QPushButton("Back")
         _connect(
@@ -638,17 +669,36 @@ class SettingsPage(QWidget):
         if self.app_window is not None:
             self.app_window.apply_theme(self.dark_mode)
 
+    def toggle_display_mode(self, _checked: bool | None = None) -> None:
+        """Toggle between 640x640 Square display and 1.75\" 466x466 Round Touch display."""
+        self.round_mode = not self.round_mode
+        self.display_button.blockSignals(True)
+        self.display_button.setChecked(self.round_mode)
+        self.display_button.setText(
+            "Display: Round (466x466)"
+            if self.round_mode
+            else "Display: Square (640x640)"
+        )
+        self.display_button.blockSignals(False)
+
+        if self.app_window is not None:
+            self.app_window.apply_display_mode(self.round_mode)
+
 
 class PokedexApp(QMainWindow):
     """Main window managing stacked pages of the Pokédex application."""
 
-    def __init__(self, db_path: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        db_path: Path | str | None = None,
+        round_mode: bool = False,
+    ) -> None:
         super().__init__()
         self.db_path: Path = Path(db_path) if db_path else DB_PATH
         self.dark_mode: bool = False
+        self.round_mode: bool = bool(round_mode)
         self.custom_font_family: str = "Arial"
         self.setWindowTitle("Pokédex")
-        self.setFixedSize(640, 640)
         self.bind_keys()
         self.load_custom_font()
 
@@ -683,18 +733,125 @@ class PokedexApp(QMainWindow):
         self.stacked_widget.addWidget(self.region_select_page)
 
         self.stacked_widget.setCurrentWidget(self.main_menu)
+        self.apply_display_mode(self.round_mode)
+
+    def apply_display_mode(self, round_mode: bool = False) -> None:
+        """Configure layout geometry, circular mask, icon sizes, and touch behavior for 466x466 round or 640x640 square mode."""
+        self.round_mode = bool(round_mode)
+        self.settings_page.round_mode = self.round_mode
+        self.settings_page.display_button.blockSignals(True)
+        self.settings_page.display_button.setChecked(self.round_mode)
+        self.settings_page.display_button.setText(
+            "Display: Round (466x466)"
+            if self.round_mode
+            else "Display: Square (640x640)"
+        )
+        self.settings_page.display_button.blockSignals(False)
+
+        if self.round_mode:
+            self.setFixedSize(ROUND_DISPLAY_SIZE, ROUND_DISPLAY_SIZE)
+            self.setMask(
+                QRegion(
+                    0,
+                    0,
+                    ROUND_DISPLAY_SIZE,
+                    ROUND_DISPLAY_SIZE,
+                    QRegion.RegionType.Ellipse,
+                )
+            )
+            # Safe circular margins so headers and bottom buttons fit within the 466x466 circle
+            for page, margins in (
+                (self.main_menu, (75, 65, 75, 65)),
+                (self.region_select_page, (58, 38, 58, 42)),
+                (self.pokedex_page, (56, 36, 56, 42)),
+                (self.pokemon_page, (54, 30, 54, 38)),
+                (self.trainer_card_page, (54, 48, 54, 48)),
+                (self.settings_page, (68, 65, 68, 65)),
+            ):
+                page_layout = page.layout()
+                if page_layout is not None:
+                    page_layout.setContentsMargins(*margins)
+                    page_layout.setSpacing(6)
+
+            self.pokedex_page.pokemon_list.setIconSize(QSize(36, 36))
+            self.pokedex_page.touch_single_tap = True
+            self.pokemon_page.artwork_size = 96
+            self.pokemon_page.shiny_size = 68
+
+            trainer_pixmap = QPixmap(str(TRAINER_IMAGE_PATH))
+            if not trainer_pixmap.isNull():
+                self.trainer_card_page.image_label.setPixmap(
+                    trainer_pixmap.scaled(
+                        110,
+                        160,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.FastTransformation,
+                    )
+                )
+        else:
+            self.clearMask()
+            self.setFixedSize(SQUARE_DISPLAY_SIZE, SQUARE_DISPLAY_SIZE)
+            for page in (
+                self.main_menu,
+                self.region_select_page,
+                self.pokedex_page,
+                self.pokemon_page,
+                self.trainer_card_page,
+                self.settings_page,
+            ):
+                page_layout = page.layout()
+                if page_layout is not None:
+                    page_layout.setContentsMargins(11, 11, 11, 11)
+                    page_layout.setSpacing(6)
+
+            self.pokedex_page.pokemon_list.setIconSize(QSize(60, 60))
+            self.pokedex_page.touch_single_tap = False
+            self.pokemon_page.artwork_size = 180
+            self.pokemon_page.shiny_size = 120
+
+            trainer_pixmap = QPixmap(str(TRAINER_IMAGE_PATH))
+            if not trainer_pixmap.isNull():
+                self.trainer_card_page.image_label.setPixmap(
+                    trainer_pixmap.scaled(
+                        256,
+                        400,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.FastTransformation,
+                    )
+                )
+
+        if self.pokemon_page.current_pokemon_id is not None:
+            self.pokemon_page.load_pokemon(self.pokemon_page.current_pokemon_id)
+
         self.apply_theme(self.dark_mode)
+        self.update()
 
     def apply_theme(self, dark_mode: bool = False) -> None:
-        """Apply light or dark stylesheet across the window and QApplication."""
+        """Apply light or dark stylesheet for either square or round display mode."""
         self.dark_mode = bool(dark_mode)
-        target_qss = DARK_STYLES_PATH if self.dark_mode else STYLES_PATH
+        if self.round_mode:
+            target_qss = (
+                ROUND_DARK_STYLES_PATH if self.dark_mode else ROUND_STYLES_PATH
+            )
+        else:
+            target_qss = DARK_STYLES_PATH if self.dark_mode else STYLES_PATH
         if target_qss.exists():
             style = target_qss.read_text(encoding="utf-8")
             self.setStyleSheet(style)
             app_instance = QApplication.instance()
             if isinstance(app_instance, QApplication):
                 app_instance.setStyleSheet(style)
+
+    def paintEvent(self, a0: QPaintEvent | None) -> None:
+        super().paintEvent(a0)
+        if self.round_mode:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            border_color = QColor("#f0f0f0") if self.dark_mode else QColor("#111111")
+            pen = QPen(border_color, 4)
+            painter.setPen(pen)
+            painter.drawEllipse(2, 2, ROUND_DISPLAY_SIZE - 4, ROUND_DISPLAY_SIZE - 4)
+            painter.end()
 
     def load_custom_font(self) -> None:
         font_id = QFontDatabase.addApplicationFont(str(FONT_PATH))
@@ -721,6 +878,7 @@ class PokedexApp(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = PokedexApp()
+    use_round = "--round" in sys.argv
+    window = PokedexApp(round_mode=use_round)
     window.show()
     sys.exit(app.exec())

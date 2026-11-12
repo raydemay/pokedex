@@ -16,6 +16,7 @@ sys.path.insert(0, str(BASE_DIR / "src"))
 sys.path.insert(0, str(BASE_DIR / "database"))
 
 import main as pokedex_main
+import main_round as pokedex_round
 import seed_database as seeder
 
 
@@ -409,5 +410,36 @@ def test_extract_pokemon_info_description_and_shiny():
     assert info["sprite_url"] == "https://example.com/sprites/25.png"
     assert info["shiny_url"] == "https://example.com/sprites/shiny/25.png"
     assert info["description"] == "When several of these POKéMON gather, their electricity could build."
+
+
+def test_round_touch_display_interface(qapp, temp_db):
+    """Verify the 1.75-inch 466x466 round touch display interface and Settings display toggle."""
+    round_win = pokedex_round.RoundPokedexApp(db_path=temp_db)
+    try:
+        assert round_win.round_mode is True
+        assert round_win.width() == 466
+        assert round_win.height() == 466
+        assert not round_win.mask().isEmpty()
+        assert round_win.pokedex_page.touch_single_tap is True
+
+        # Single-tap (itemClicked) opens PokemonPage on the round touch display
+        item0 = round_win.pokedex_page.pokemon_list.item(0)
+        round_win.pokedex_page.pokemon_list.itemClicked.emit(item0)
+        assert round_win.stacked_widget.currentWidget() is round_win.pokemon_page
+        assert round_win.pokemon_page.current_pokemon_id == 1
+
+        # Toggle dark mode in round mode uses round_dark_styles.qss (#121212)
+        round_win.settings_page.theme_button.click()
+        assert round_win.dark_mode is True
+        assert "#121212" in round_win.styleSheet()
+
+        # Toggle display mode back to 640x640 Square via SettingsPage
+        round_win.settings_page.display_button.click()
+        assert round_win.round_mode is False
+        assert round_win.width() == 640
+        assert round_win.height() == 640
+        assert round_win.pokedex_page.touch_single_tap is False
+    finally:
+        round_win.close()
 
 
